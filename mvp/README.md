@@ -1,87 +1,87 @@
-# 云端字幕MVP
+# Cloud Caption MVP
 
-这个目录只用于比较Groq与VideoCaptioner的转录流程，不会修改正式的`archive/`，也不会把临时音频保存到字幕档案。
+This directory is only for comparing the Groq and VideoCaptioner transcription workflows. It does not modify the production `archive/` or save temporary audio in the caption archive.
 
-## 测试对象
+## Test video
 
-默认建议使用当前档案中确认没有YouTube字幕的视频：
+The recommended default is a video in the current archive that has been confirmed to have no YouTube captions:
 
 ```text
 https://www.youtube.com/watch?v=jpoMabs9t4s
 ```
 
-## 第一步：运行轻量Groq流程
+## Step 1: Run the lightweight Groq workflow
 
-macOS图形化MVP：双击`运行 Groq MVP.app`，粘贴完整Key后点击“开始MVP测试”。可以勾选“显示输入内容以便确认”。Key只保留在该次子进程内存中，不会保存到钥匙串或文件。
+For the macOS graphical MVP, double-click `运行 Groq MVP.app`, paste the complete key, and click Start MVP Test. You can select the option to show the input for verification. The key remains only in the subprocess's memory for that run; it is not saved to the Keychain or a file.
 
-也可以在本机终端临时设置API Key。不要把Key写入脚本、截图、GitHub或聊天记录：
+You can also set an API key temporarily in your local terminal. Do not put keys in scripts, screenshots, GitHub, or chat histories:
 
 ```bash
-export GROQ_API_KEY='你的Groq API Key'
+export GROQ_API_KEY='Your Groq API Key'
 cd "/Users/larryxu/Documents/Youtube Caption"
 python3 mvp/cloud_asr_mvp.py \
   --video-url 'https://www.youtube.com/watch?v=jpoMabs9t4s'
 ```
 
-输出写入`mvp/results/<视频ID>/<运行时间>/`：
+Output is written to `mvp/results/<video-ID>/<run-time>/`:
 
-- `groq_raw_chunks.json`：Groq原始响应，供审计；
-- `groq_segments.json`：统一后的时间轴；
-- `groq_transcript.srt`；
-- `groq_transcript.vtt`；
-- `groq_transcript.txt`；
-- `groq_report.json`：时长、速度、切片数量和估算费用。
+- `groq_raw_chunks.json`: raw Groq responses for auditing;
+- `groq_segments.json`: normalized timestamps;
+- `groq_transcript.srt`;
+- `groq_transcript.vtt`;
+- `groq_transcript.txt`;
+- `groq_report.json`: duration, speed, chunk count, and estimated cost.
 
-默认行为：
+Default behavior:
 
-- 只获取YouTube音频流，不下载视频画面；
-- 转为16kHz、单声道、48kbps MP3；
-- 超过10分钟自动切片，相邻片段重叠10秒；
-- 使用`whisper-large-v3-turbo`；
-- 成功、失败或取消后都会删除临时音频。
+- Fetch only YouTube's audio stream, without downloading video;
+- Convert to 16 kHz, mono, 48 kbps MP3;
+- Automatically split audio longer than 10 minutes, with 10 seconds of overlap between adjacent chunks;
+- Use `whisper-large-v3-turbo`;
+- Delete temporary audio after success, failure, or cancellation.
 
-只有为了让VideoCaptioner使用完全相同的输入音频做对照时，才可以增加`--keep-audio`。对比结束后应删除`comparison_audio.mp3`。
+Add `--keep-audio` only when VideoCaptioner needs exactly the same input audio for a comparison. Delete `comparison_audio.mp3` after the comparison.
 
-## 第二步：VideoCaptioner对照
+## Step 2: Compare with VideoCaptioner
 
-VideoCaptioner固定使用本次审查的上游版本：
+VideoCaptioner is pinned to the upstream version examined in this review:
 
 ```text
 commit 95842ecb5618c0b6a548a336bdfb0eb859bdb501
 ```
 
-对照运行需要单独的Python 3.10–3.12隔离环境和较多依赖。先完成轻量Groq流程，确认API、音频和时间轴正常，再安装并运行VideoCaptioner，避免在尚未验证Key之前下载无关的大型依赖。
+The comparison requires a separate isolated Python 3.10–3.12 environment and many dependencies. Complete the lightweight Groq workflow first to confirm that the API, audio, and timestamps work, then install and run VideoCaptioner. This avoids downloading unrelated large dependencies before the key has been verified.
 
-比较时，两条路线必须使用相同的`comparison_audio.mp3`、Groq模型、语言和提示词。
+Both workflows must use the same `comparison_audio.mp3`, Groq model, language, and prompt for the comparison.
 
-## 离线测试
+## Offline tests
 
 ```bash
 cd "/Users/larryxu/Documents/Youtube Caption/mvp"
 python3 -m unittest -v test_cloud_asr_mvp.py
 ```
 
-## 下一轮端到端提速实验
+## Next-round end-to-end speed experiment
 
-`next_round_mvp.py`会连续测试两条独立链路，不修改正式字幕档案：
+`next_round_mvp.py` tests two independent paths in sequence without modifying the production caption archive:
 
-1. 默认使用`yt-dlp → ffmpeg → Groq`流水线，第一片根据音频测速在2–5分钟间自适应，后续每片10分钟，最多2路并发；
-2. `--try-direct-url`保留为诊断选项；实测Groq读取YouTube临时URL会收到302，因此正式路径不会浪费时间尝试；
-3. 自动测速最多4个低码率纯音频来源，首选源失败后按顺序降级；
-4. 每个Groq片段成功后立即原子保存文字断点。暂停、异常退出或网络失败后，下一次不会重复调用已经成功的片段；整条视频完成后自动删除断点。
+1. By default, use the `yt-dlp → ffmpeg → Groq` pipeline. The first chunk adapts between 2 and 5 minutes based on measured audio speed, subsequent chunks are 10 minutes each, and concurrency is limited to two;
+2. Keep `--try-direct-url` as a diagnostic option. In testing, Groq received a 302 when reading YouTube's temporary URLs, so the production path does not spend time trying it;
+3. Automatically speed-test up to four low-bitrate audio-only sources, falling back in order if the preferred source fails;
+4. Atomically save a text checkpoint immediately after each successful Groq chunk. After a pause, unexpected exit, or network failure, the next run does not call Groq again for successful chunks. Delete checkpoints automatically when the entire video finishes.
 
-它只请求段落时间戳，并记录首段字幕出现时间与完整端到端时间：
+It requests only segment timestamps and records both time to first captions and total end-to-end time:
 
 ```bash
 cd "/Users/larryxu/Documents/Youtube Caption"
 python3 mvp/next_round_mvp.py
 ```
 
-API Key优先从环境变量读取；没有环境变量时，从前述macOS钥匙串项目读取。临时音频片段在Groq确认完成后立即删除，YouTube临时音频URL不会写入结果。
+The API key is read from the environment variable first; if none is set, it is read from the previously described macOS Keychain item. Temporary audio chunks are deleted as soon as Groq confirms completion. Temporary YouTube audio URLs are not written to the results.
 
-真实验证记录：
+Recorded live verification:
 
-- 自动选源选择了约50.6kbps的`249-drc`，14分16秒视频首段字幕5.8秒出现、8.1秒全部完成；
-- 断点恢复时第一片明确跳过Groq，只识别剩余第二片；
-- 故意使用不存在的音频格式后，程序自动切换到可用来源并完成；
-- 测试成功后断点和临时音频均自动删除。
+- Automatic source selection chose `249-drc` at about 50.6 kbps. For a 14-minute, 16-second video, the first captions appeared in 5.8 seconds and the full result finished in 8.1 seconds;
+- On checkpoint resume, the first chunk explicitly skipped Groq, and only the remaining second chunk was recognized;
+- After deliberately selecting a nonexistent audio format, the program automatically switched to an available source and completed;
+- Checkpoints and temporary audio were both deleted automatically after the successful test.

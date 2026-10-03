@@ -1,117 +1,117 @@
 # YouTube Transcript
 
-把 YouTube 频道的视频列表、字幕和基础互动数据整理成本地 HTML 档案：左边播放 YouTube 视频，右边阅读逐字字幕；没有 YouTube 字幕时，可使用 Groq 或 OpenAI 的 Whisper 服务自动生成带时间轴的 AI 字幕，支持中文、英语等 99+ 种语言。
+Organize a YouTube channel's video list, captions, and basic engagement data into a local HTML archive: play the YouTube video on the left and read the transcript on the right. When YouTube captions are unavailable, use Groq or OpenAI's Whisper service to generate timestamped AI captions automatically, with support for more than 99 languages, including Chinese and English.
 
-这个工具不会下载视频文件，也不会长期保存音频、SRT、VTT、TXT 等中间文件。它只保存本地 HTML、一个很小的增量状态文件和可选 CSV 列表。
+This tool does not download video files or retain intermediate audio, SRT, VTT, or TXT files long-term. It saves only local HTML, a small incremental state file, and an optional CSV list.
 
-## 功能
+## Features
 
-- 抓取 YouTube 频道历史视频列表。
-- 优先使用人工字幕，其次使用 YouTube 自动字幕。
-- 没有 YouTube 字幕时，可自动提取低码率纯音频并调用 Groq 或 OpenAI Whisper 生成 AI 字幕，支持中文、英语等 99+ 种语言并自动识别语种。
-- 长视频采用自适应切片、并行识别、音频源自动切换和断点续传；临时音频完成后自动删除。
-- 每个频道生成一个 `index.html` 列表页。
-- 每个视频生成一个单独 HTML 页面。
-- 点击字幕时间戳，视频跳转到对应时间。
-- 无字幕视频也生成页面，左侧仍可播放视频。
-- 显示发布时间、观看数、点赞数、评论数。
-- 生成 `videos.csv`，方便在 Excel、Numbers、Google Sheets 中打开。
-- 增量更新：已归档视频自动跳过。
-- 启动任务前检查 YouTube 连接，并区分超时、DNS、TLS、代理、限流、登录验证、地区限制、私密视频和视频失效。
-- 临时网络错误自动限次重试；不会无限停在“正在读取”。
-- 失败视频写入待重试队列，下次运行同一频道时优先处理，不重复抓取已成功视频。
-- 检测到限流、登录验证或连续网络失败时自动暂停频道，避免继续增加请求压力。
-- 默认读取 macOS/Windows 系统代理，也支持在应用内填写手动 HTTP/HTTPS/SOCKS 代理地址。
-- macOS 原生 `.app` 和 Windows 图形应用：直接输入频道、数量并查看实时进度与左对齐运行日志，不打开命令窗口；任务支持暂停、继续和停止。
-- 支持中文频道名以及浏览器复制出来的 `%E6...` 编码链接。
-- 可选择并记住档案保存位置；升级应用不会覆盖已有数据。
-- 新版不再为每个频道生成 `.command`、`.bat` 或小型查看器，统一由主应用打开结果。
-- 支持直接传频道 URL，不强制手动编辑配置文件。
+- Fetch a YouTube channel's historical video list.
+- Prefer manually created captions, then YouTube's automatic captions.
+- When YouTube captions are unavailable, automatically extract low-bitrate audio and call Groq or OpenAI Whisper to generate AI captions, with automatic language detection and support for more than 99 languages, including Chinese and English.
+- Process long videos with adaptive chunking, parallel recognition, automatic audio-source switching, and resumable progress; delete temporary audio after processing.
+- Generate an `index.html` listing for each channel.
+- Generate a separate HTML page for each video.
+- Click a caption timestamp to jump to that point in the video.
+- Generate pages even for videos without captions, with video playback still available on the left.
+- Display publication time, view count, like count, and comment count.
+- Generate `videos.csv` for easy use in Excel, Numbers, or Google Sheets.
+- Update incrementally: automatically skip archived videos.
+- Check the YouTube connection before starting a task and distinguish timeouts, DNS, TLS, proxy errors, rate limits, login verification, regional restrictions, private videos, and unavailable videos.
+- Retry temporary network errors a limited number of times instead of remaining stuck on the reading status indefinitely.
+- Add failed videos to a retry queue and prioritize them the next time the same channel runs, without fetching successful videos again.
+- Automatically pause a channel when rate limits, login verification, or repeated network failures are detected, avoiding further request pressure.
+- Use macOS/Windows system proxy settings by default, with support for entering a manual HTTP/HTTPS/SOCKS proxy address in the app.
+- Provide a native macOS `.app` and a Windows graphical app: enter a channel and video count, then view live progress and left-aligned logs without opening a command window. Tasks support pause, resume, and stop.
+- Support Chinese channel names and percent-encoded links copied from a browser, such as `%E6...`.
+- Let you choose and remember the archive location; app upgrades do not overwrite existing data.
+- Open results through the main app; newer versions no longer generate a `.command`, `.bat`, or small viewer for every channel.
+- Accept channel URLs directly, without requiring manual configuration-file edits.
 
-## 安装
+## Installation
 
-macOS 普通用户下载 DMG 后，把“YouTube Transcript”拖入“应用程序”即可。发布版已内置独立后端、yt-dlp 和 FFmpeg，不需要安装 Python、Homebrew 或使用 Terminal。
+On macOS, download the DMG and drag “YouTube Transcript” into Applications. Release builds include a standalone backend, yt-dlp, and FFmpeg; you do not need to install Python or Homebrew or use Terminal.
 
-DMG 使用传统 Mac 安装布局：左侧是应用，右侧 `Applications` 是系统“应用程序”目录的快捷方式。将左侧应用拖到右侧即完成安装。首次从“应用程序”启动后，应用会提醒用户推出安装磁盘并删除下载的 DMG；不会自动删除用户文件。
+The DMG uses the traditional Mac installation layout: the app is on the left, and `Applications` on the right is a shortcut to the system Applications folder. Drag the app from left to right to install it. After the first launch from Applications, the app reminds you to eject the installation disk and delete the downloaded DMG; it does not delete user files automatically.
 
-因为当前免费版本没有 Apple Developer 公证，首次启动可能被 Gatekeeper 阻止。请在 Finder 中按住 Control 点击应用并选择“打开”；如果仍被阻止，进入“系统设置 → 隐私与安全性”，在底部选择“仍要打开”。不需要输入任何终端命令。
+The current free version is not notarized through the Apple Developer program, so Gatekeeper may block its first launch. In Finder, Control-click the app and choose Open. If it is still blocked, go to System Settings → Privacy & Security and select Open Anyway near the bottom. No Terminal commands are needed.
 
-直接运行源码的开发者才需要 Python 3、`yt-dlp` 和 FFmpeg。应用不会下载或保存视频文件；AI 字幕只临时处理纯音频，完成或失败后都会自动清理。
+Only developers running the source directly need Python 3, `yt-dlp`, and FFmpeg. The app does not download or save video files. AI captions temporarily process audio only, which is cleaned up automatically after success or failure.
 
-## 最快用法
+## Quickest start
 
-如果只想看小白三步说明，先看 [QUICKSTART.md](QUICKSTART.md)。
+For a beginner-friendly three-step guide, see [QUICKSTART.md](QUICKSTART.md).
 
-如果你不想输入命令：
+If you prefer not to enter commands:
 
-- macOS：双击 `YouTube Transcript.app`。它是原生 macOS 界面，让你粘贴频道地址、设置本次数量、选择档案位置，并实时显示抓取进度；抓取过程中可以暂停、继续或停止，不会打开 Terminal。
-- Windows：从网站下载 `YouTube-Transcript-2.3.1.1-Windows-x64-Setup.exe`，按安装向导完成安装，再从开始菜单打开“YouTube Transcript”。不需要另装 Python、yt-dlp 或 FFmpeg。
+- macOS: Double-click `YouTube Transcript.app`. Its native interface lets you paste a channel URL, set the number of videos for this run, choose an archive location, and see live progress. You can pause, resume, or stop without opening Terminal.
+- Windows: Download `YouTube-Transcript-2.3.1.1-Windows-x64-Setup.exe` from the website, complete the installation wizard, and open “YouTube Transcript” from the Start menu. You do not need to install Python, yt-dlp, or FFmpeg separately.
 
-然后粘贴 YouTube 博主主页链接，例如 `https://www.youtube.com/@handle`。首次运行默认保存到“文稿/YouTube 字幕学习档案”，也可以在应用里选择已有档案目录；抓完后会打开刚处理的博主页面。
+Paste a YouTube creator's channel URL, such as `https://www.youtube.com/@handle`. On the first run, the default location is the `YouTube 字幕学习档案` folder in Documents. You can also select an existing archive directory in the app. When fetching finishes, the page for the channel just processed opens.
 
-如果启用“无 YouTube 字幕时自动生成 AI 字幕”，可选择 Groq（默认、速度优先）或 OpenAI Whisper，并粘贴对应 API Key。两者均支持中文、英语等 99+ 种语言并自动识别语种。界面的“获取 API Key”会打开服务商官方平台。不同服务的 Key 分开加密保存，不会写入字幕档案或运行日志。若只想保存 YouTube 自带字幕和无字幕播放页，可以取消勾选该功能。
+If you enable automatic AI captions when YouTube captions are unavailable, select Groq (the default, optimized for speed) or OpenAI Whisper and paste the corresponding API key. Both support more than 99 languages, including Chinese and English, and detect the language automatically. The Get API Key control opens the provider's official platform. Keys for different services are encrypted and saved separately, and are not written to caption archives or logs. Disable this option if you only want YouTube's existing captions and playback pages for videos without captions.
 
-粘贴 API Key 后点击“保存 Key”，界面显示“已保存”即表示保存成功。macOS 使用系统钥匙串，Windows 使用当前账户的 DPAPI 加密保存。如果 macOS 搜索出现两个同名应用，通常是安装磁盘尚未推出；推出安装磁盘、删除下载的 DMG，并从“应用程序”文件夹删除旧版“开始抓取 YouTube 字幕”即可，字幕档案不会受影响。
+After pasting an API key, click Save Key; the Saved status confirms success. macOS uses the system Keychain, while Windows uses DPAPI encryption for the current account. If macOS search shows two apps with the same name, the installation disk is usually still mounted. Eject it, delete the downloaded DMG, and remove the old app named `开始抓取 YouTube 字幕` from Applications. This does not affect caption archives.
 
-“网络代理”通常留空即可，应用会自动读取系统设置。如果浏览器可以打开 YouTube、应用却无法读取频道，可以填写代理软件显示的本机代理地址，例如 `http://127.0.0.1:端口`。包含账号密码的代理不会被应用记住，日志也会隐藏认证信息。
+The Network Proxy field can usually remain empty because the app reads system settings automatically. If your browser can open YouTube but the app cannot read a channel, enter the local proxy address shown by your proxy software, such as `http://127.0.0.1:PORT`. The app does not remember proxies containing a username and password, and logs hide authentication details.
 
-如果这个博主以前已经抓过，再次输入同一个博主主页即可继续。程序会自动跳过已完成的视频，继续抓更早的视频。
+If you have fetched this creator before, enter the same channel URL again to continue. The program skips completed videos and continues with older ones.
 
-数量填 `50` 或 `100` 适合日常使用；填 `0` 表示本次尝试抓取全部未归档视频。大频道仍建议分批运行，减少 YouTube 临时限流。
+A count of `50` or `100` is suitable for everyday use. Enter `0` to attempt all videos not yet archived in this run. For large channels, smaller batches are still recommended to reduce temporary YouTube rate limits.
 
-如果你习惯命令行，也可以只用一个 Python 文件运行：
+If you prefer the command line, you can run a single Python file:
 
 ```bash
 python3 youtube_caption.py --interactive
 ```
 
-抓取完成后打开结果：
+Open the results after fetching:
 
 ```bash
 python3 youtube_caption.py --open --output archive
 ```
 
-也可以直接传频道链接：
+You can also pass a channel URL directly:
 
 ```bash
 python3 youtube_caption.py --channel "https://www.youtube.com/@handle" --output archive
 ```
 
-Windows 可把 `python3` 换成：
+On Windows, replace `python3` with:
 
 ```powershell
 py -3 youtube_caption.py --channel "https://www.youtube.com/@handle" --output archive
 ```
 
-## 构建 macOS 原生应用
+## Build the native macOS app
 
-普通用户不需要构建。开发者修改界面或后端后，日常调试可运行：
+Regular users do not need to build the app. After changing the interface or backend, developers can run this for everyday debugging:
 
 ```bash
 ./macos/build_macos_app.sh
 ```
 
-调试应用会生成在 `.build/Products.noindex/YouTube Transcript.app`。该目录不会被 Spotlight 当作另一份已安装应用展示；普通用户仍应从 DMG 安装到“应用程序”。
+The debug app is generated at `.build/Products.noindex/YouTube Transcript.app`. Spotlight does not list this directory as another installed copy. Regular users should still install from the DMG into Applications.
 
-生成网站分发用的通用 DMG：
+Generate a universal DMG for website distribution:
 
 ```bash
 ./macos/build_release_macos.sh
 ```
 
-发布构建同时支持 Apple Silicon 与 Intel Mac，并内置后端、yt-dlp 与从 FFmpeg 官方固定版本源码构建的 LGPL 通用音频组件。产物位于 `release/`，同时生成 SHA-256 校验文件。构建机需要一次性准备项目内的 PyInstaller、dmgbuild 环境和官方 `yt-dlp_macos`；缺少 FFmpeg 时脚本会校验官方源码后自动构建。普通用户不需要这些工具。
+Release builds support both Apple Silicon and Intel Macs. They include the backend, yt-dlp, and universal LGPL audio components built from a pinned official FFmpeg source release. Artifacts and SHA-256 checksum files are written to `release/`. The build machine needs a one-time setup of project-local PyInstaller and dmgbuild environments and the official `yt-dlp_macos`. If FFmpeg is missing, the script verifies the official source and builds it automatically. Regular users do not need these tools.
 
-查看档案时直接打开主应用并点击“打开结果”。
+To view an archive, open the main app and click Open Results.
 
-## 批量配置多个频道
+## Configure multiple channels
 
-复制示例配置：
+Copy the example configuration:
 
 ```bash
 cp channels.example.json channels.json
 ```
 
-编辑 `channels.json`：
+Edit `channels.json`:
 
 ```json
 {
@@ -127,60 +127,60 @@ cp channels.example.json channels.json
 }
 ```
 
-然后运行：
+Then run:
 
 ```bash
 python3 youtube_caption.py --config channels.json --output archive
 ```
 
-频道 URL 可以直接粘贴主页地址，例如 `https://www.youtube.com/@handle`；程序会自动转换到 `/videos`。`name` 是可选字段，只有你想自定义本地文件夹名称时才需要。
+You can paste a channel homepage URL directly, such as `https://www.youtube.com/@handle`; the program automatically converts it to `/videos`. The `name` field is optional and is only needed to customize the local folder name.
 
-## 常用命令
+## Common commands
 
-## 构建 Windows 安装程序
+## Build the Windows installer
 
-普通用户不需要构建。开发者可在 Windows 10/11 x64 上安装 Python 3.11 与 Inno Setup 6，然后运行：
+Regular users do not need to build the app. Developers can install Python 3.11 and Inno Setup 6 on Windows 10/11 x64, then run:
 
 ```powershell
 .\build_windows_exe.ps1
 ```
 
-脚本会创建隔离环境、下载官方 `yt-dlp.exe`，分别打包无窗口图形应用和后端，并生成标准安装程序及 SHA-256：
+The script creates an isolated environment, downloads the official `yt-dlp.exe`, packages the windowless graphical app and backend separately, and generates a standard installer and SHA-256 checksum:
 
 ```text
 release\windows\YouTube-Transcript-2.3.1.1-Windows-x64-Setup.exe
 release\windows\YouTube-Transcript-2.3.1.1-Windows-x64-Setup.exe.sha256
 ```
 
-也可以把代码推送到 GitHub 后，手动运行 `Build Windows installer` 工作流，在构建产物中下载相同的安装包。PyInstaller 不支持在 macOS 上直接生成 Windows 可执行文件，因此最后的 EXE 必须由 Windows 构建机或 Windows GitHub Actions 生成。
+You can also push the code to GitHub, manually run the `Build Windows installer` workflow, and download the same installer from its build artifacts. PyInstaller cannot generate Windows executables directly on macOS, so the final EXE must be built on a Windows machine or Windows GitHub Actions runner.
 
-安装程序采用当前用户安装，不要求管理员权限；程序文件位于用户应用目录，字幕档案默认位于“文档\YouTube 字幕学习档案”，卸载或升级应用不会删除字幕档案。当前免费版本未做商业代码签名，其他电脑首次安装可能出现 Microsoft Defender SmartScreen 提醒。
+The installer installs for the current user and does not require administrator privileges. Program files are stored in the user's application directory, and caption archives default to the `YouTube 字幕学习档案` folder in Documents. Uninstalling or upgrading the app does not delete caption archives. The current free version does not have commercial code signing, so Microsoft Defender SmartScreen may show a warning when installing on another computer for the first time.
 
-小批量测试：
+Test with a small batch:
 
 ```bash
 python3 youtube_caption.py --channel "https://www.youtube.com/@handle" --output archive --limit 3
 ```
 
-每次最多处理 100 条新视频：
+Process at most 100 new videos per run:
 
 ```bash
 python3 youtube_caption.py --channel "https://www.youtube.com/@handle" --output archive --limit 100
 ```
 
-重新检查之前无字幕的视频：
+Recheck videos that previously had no captions:
 
 ```bash
 python3 youtube_caption.py --config channels.json --output archive --retry-missing
 ```
 
-只回填旧视频的发布时间、观看数、点赞数、评论数，不新增视频：
+Backfill only publication times, view counts, like counts, and comment counts for existing videos without adding new ones:
 
 ```bash
 python3 youtube_caption.py --config channels.json --output archive --limit 0 --metadata-limit 100
 ```
 
-## 输出结构
+## Output structure
 
 ```text
 archive/
@@ -189,50 +189,50 @@ archive/
     ├── index.html
     ├── videos.csv
     ├── .caption-archive.json
-    ├── .caption-retry.json（仅在存在待重试视频时出现）
-    ├── .ai-checkpoints/（AI 任务中断时保留，成功后自动清理）
-    ├── .ai-reports/（AI 处理耗时与模型信息，不含音频和 Key）
+    ├── .caption-retry.json (present only when videos are awaiting retry)
+    ├── .ai-checkpoints/ (retained when an AI task is interrupted; cleaned up after success)
+    ├── .ai-reports/ (AI processing times and model details; no audio or keys)
     └── 2026-08-21_videoId.html
 ```
 
-`.caption-archive.json` 是增量状态文件，请保留。它不是视频或字幕中间文件。
+Keep `.caption-archive.json`, which stores incremental state. It is not an intermediate video or caption file.
 
-`.caption-retry.json` 保存失败视频的编号、错误类型和重试次数，不包含视频、音频、字幕或密码。网络恢复后再次运行同一频道，程序会优先重试；全部成功后该文件自动删除。
+`.caption-retry.json` stores failed video IDs, error types, and retry counts. It contains no video, audio, captions, or passwords. Run the same channel again after the network recovers to prioritize retries; the file is deleted automatically when all retries succeed.
 
-`.ai-checkpoints` 只保存已经成功返回的分段识别结果，用于断点续传；不保存音频或 API Key。整条视频完成后对应检查点会自动删除。
+`.ai-checkpoints` stores only successfully returned recognition results for individual chunks so processing can resume. It does not store audio or API keys. A video's checkpoint is deleted automatically when the entire video finishes.
 
-## 网络异常时会发生什么
+## What happens during network problems
 
-- 浏览器也无法打开 YouTube：应用会限次重试并清楚提示，现有档案不受影响。
-- 浏览器能打开但应用失败：先确认系统代理已启用；仍失败时在“网络代理”填写本机代理地址。
-- YouTube 提示 429：应用立即停止当前频道并保存进度，建议等待 30–60 分钟。
-- YouTube 要求登录或机器人验证：应用不会提高请求频率，也不会尝试绕过验证。
-- 单个视频私密、删除或受地区限制：只把该条加入待重试队列，其余视频继续处理。
-- 连续三条视频发生连接类错误：应用暂停频道，避免在断网状态下不断请求。
+- YouTube also fails in the browser: the app retries a limited number of times and shows a clear message; existing archives remain unaffected.
+- YouTube works in the browser but the app fails: first confirm the system proxy is enabled. If it still fails, enter the local proxy address in Network Proxy.
+- YouTube returns 429: the app immediately stops the current channel and saves progress. Waiting 30–60 minutes is recommended.
+- YouTube requests sign-in or bot verification: the app does not increase request frequency or attempt to bypass verification.
+- One video is private, deleted, or region-restricted: only that video is added to the retry queue, and the others continue.
+- Three consecutive videos encounter connection errors: the app pauses the channel instead of repeatedly making requests while offline.
 
-## 为什么需要启动器打开
+## Why results need the launcher
 
-直接双击本地 HTML 时，浏览器使用 `file://` 协议，YouTube 嵌入播放器经常不能正常播放。主应用的“打开结果”会启动一个仅限本机访问的 `127.0.0.1` HTTP 服务，因此浏览器可以正常嵌入 YouTube 播放器。
+Double-clicking local HTML opens it with the browser's `file://` protocol, where the embedded YouTube player often fails. Open Results in the main app starts a local-only HTTP service at `127.0.0.1`, allowing the browser to embed the YouTube player normally.
 
-## 限流建议
+## Rate-limit recommendations
 
-大频道第一次抓取可能有几百条视频，建议：
+A first run on a large channel may include hundreds of videos. Recommended settings:
 
-- `batch_size` 或 `--limit` 设为 50 到 100。
-- `delay_seconds` 保持 2 秒或更高。
-- 如果 YouTube 提示登录、机器人验证或访问受限，先暂停一段时间，不要提高并发或缩短间隔。
+- Set `batch_size` or `--limit` to 50–100.
+- Keep `delay_seconds` at 2 seconds or higher.
+- If YouTube requests sign-in, bot verification, or reports restricted access, pause for a while. Do not increase concurrency or shorten the delay.
 
-## 给 AI 助手使用
+## Use with an AI assistant
 
-你可以这样让 Codex、Claude、Cursor 等助手调用：
+You can ask Codex, Claude, Cursor, or another assistant to run it like this:
 
 ```text
-请使用这个项目抓取 https://www.youtube.com/@handle 的全部视频列表和字幕。
-默认不要下载视频，输出到 archive，生成 HTML 页面、频道列表、videos.csv，并使用增量更新。
+Please use this project to fetch the complete video list and captions from https://www.youtube.com/@handle.
+Do not download videos by default. Write to archive, generate HTML pages, channel listings, and videos.csv, and use incremental updates.
 ```
 
-如果你的助手支持 skill，可以把 `skills/youtube-caption-archive/SKILL.md` 安装到对应的 skills 目录中。
+If your assistant supports skills, you can install `skills/youtube-caption-archive/SKILL.md` in its skills directory.
 
-## 许可
+## License
 
-MIT License。请遵守 YouTube 服务条款和内容创作者权益。本工具只整理公开页面可访问的字幕和元数据，不绕过付费、登录、版权或地区限制。
+MIT License. Respect YouTube's terms of service and content creators' rights. This tool only organizes captions and metadata accessible from public pages. It does not bypass payment, login, copyright, or regional restrictions.
